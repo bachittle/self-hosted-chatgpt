@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/alecthomas/kong"
@@ -78,8 +79,20 @@ type RunWebServerCmd struct {
 func (r *RunWebServerCmd) Run() error {
 	fmt.Println("Running web server on port", r.Port)
 
-	http.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, world!"))
+	http.HandleFunc("/api/chat", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+
+		defer r.Body.Close()
+		request, err := io.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println("Error reading request body: ", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(request)
 	})
 	http.ListenAndServe(fmt.Sprintf(":%d", r.Port), nil)
 
