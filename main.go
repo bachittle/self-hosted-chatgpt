@@ -3,13 +3,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/alecthomas/kong"
-
 	"github.com/joho/godotenv"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 var cli struct {
@@ -92,7 +93,34 @@ func (r *RunWebServerCmd) Run() error {
 			return
 		}
 
-		w.Write(request)
+		key, err := getApiKey()
+		if err != nil {
+			fmt.Println("Error getting OpenAI API key: ", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		client := openai.NewClient(key)
+		resp, err := client.CreateChatCompletion(
+			context.Background(),
+			openai.ChatCompletionRequest{
+				Model: openai.GPT3Dot5Turbo,
+				Messages: []openai.ChatCompletionMessage{
+					{
+						Role:    openai.ChatMessageRoleUser,
+						Content: string(request),
+					},
+				},
+			},
+		)
+
+		if err != nil {
+			fmt.Println("Error creating chat completion: ", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte(resp.Choices[0].Message.Content))
 	})
 	http.ListenAndServe(fmt.Sprintf(":%d", r.Port), nil)
 
