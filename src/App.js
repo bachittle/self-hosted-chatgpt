@@ -13,16 +13,18 @@ function App() {
     if (event.target.elements[0].value === "") {
       return;
     }
-    const message = event.target.elements[0].value;
-    event.target.elements[0].value = "";
-    setMsgs([...msgs, {role: "user", msg: message}])
+    const role = event.target.elements[0].value;
+    const message = event.target.elements[1].value;
+    event.target.elements[1].value = "";
+    const newMsgs = [...msgs, {role: role, content: message}]; 
+    setMsgs(newMsgs)
 
-    axios.post('http://localhost:8080/api/chat', {
-      message: message
-    })
+    console.log(newMsgs)
+
+    axios.post('http://localhost:8080/api/chat', JSON.stringify(newMsgs))
     .then((response) => {
       console.log(response.data);
-      setMsgs([...msgs, {role: "user", msg: message}, {role: "assistant", msg: response.data}])
+      setMsgs([...msgs, {role: role, content: message}, {role: "assistant", content: response.data}])
     })
     .catch((error) => {
       console.log(error);
@@ -35,12 +37,12 @@ function App() {
         {msgs.map((msg, index) => {
           if (msg.role === "user") {
             return (
-              <div key={index} style={{backgroundColor: "#FEE"}}>{msg.msg}</div>
+              <div key={index} style={{backgroundColor: "#FEE"}}>{msg.content}</div>
             )
           } else {
             return (
               <div key={index} style={{backgroundColor: "#EEF"}}>
-                <ReactMarkdown>{msg.msg}</ReactMarkdown>
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
               </div>
             )
           }
@@ -49,7 +51,11 @@ function App() {
       <Form onSubmit={handleChat}>
         <Form.Group>
           <Form.Label>Message</Form.Label>
-          <Form.Control as="textarea" rows={3} />
+          <Form.Select>
+            <option>user</option>
+            <option>system</option>
+          </Form.Select>
+          <Form.Control placeholder='content'/>
           <Button variant="primary" type="submit">submit</Button>
         </Form.Group>
       </Form>

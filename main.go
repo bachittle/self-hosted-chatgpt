@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,10 +86,21 @@ func (r *RunWebServerCmd) Run() error {
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "*")
 
+		fmt.Println("Request received to /api/chat")
+
 		defer r.Body.Close()
 		request, err := io.ReadAll(r.Body)
 		if err != nil {
 			fmt.Println("Error reading request body: ", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		fmt.Println("Request body: ", string(request))
+
+		var msgs []openai.ChatCompletionMessage
+		err = json.Unmarshal(request, &msgs)
+		if err != nil {
+			fmt.Println("Error unmarshalling request body: ", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -104,13 +116,8 @@ func (r *RunWebServerCmd) Run() error {
 		resp, err := client.CreateChatCompletion(
 			context.Background(),
 			openai.ChatCompletionRequest{
-				Model: openai.GPT3Dot5Turbo,
-				Messages: []openai.ChatCompletionMessage{
-					{
-						Role:    openai.ChatMessageRoleUser,
-						Content: string(request),
-					},
-				},
+				Model:    openai.GPT3Dot5Turbo,
+				Messages: msgs,
 			},
 		)
 
@@ -120,6 +127,7 @@ func (r *RunWebServerCmd) Run() error {
 			return
 		}
 
+		fmt.Println("Response: ", resp.Choices[0].Message.Content)
 		w.Write([]byte(resp.Choices[0].Message.Content))
 	})
 	http.ListenAndServe(fmt.Sprintf(":%d", r.Port), nil)
